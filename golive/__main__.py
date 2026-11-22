@@ -1,4 +1,4 @@
-"""CLI: python -m deploy_doctor incident.log [--config cfg.json] [--lang ar]
+"""CLI: python -m golive incident.log [--config cfg.json] [--lang ar]
 
 Risky fixes stop and ask on the terminal before the report is written.
 """
@@ -19,7 +19,7 @@ def ask(prompt):
 
 
 def main():
-    ap = argparse.ArgumentParser(prog="deploy_doctor")
+    ap = argparse.ArgumentParser(prog="golive")
     ap.add_argument("log")
     ap.add_argument("--config")
     ap.add_argument("--lang", default="en", choices=["en", "ar"])

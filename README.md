@@ -1,8 +1,8 @@
-# deploy-doctor
+# GoLive
 
 **A LangGraph agent that diagnoses why an enterprise AI deployment is failing on Google Cloud (Vertex AI) or Azure, from its logs and config, and tells the customer what to fix in English or Arabic.**
 
-The four failures I see most when taking AI agents from pilot to production for enterprise clients are identity (Entra ID tokens, scopes, consent), quotas, retrieval and network lockdown. They show up as a wall of log lines, and the customer wants one answer: what is wrong and what do we change. deploy-doctor turns the logs into that answer, shows the exact log line behind it, and refuses to guess when the evidence is thin.
+The four failures I see most when taking AI agents from pilot to production for enterprise clients are identity (Entra ID tokens, scopes, consent), quotas, retrieval and network lockdown. They show up as a wall of log lines, and the customer wants one answer: what is wrong and what do we change. GoLive turns the logs into that answer, shows the exact log line behind it, and refuses to guess when the evidence is thin.
 
 ## What it does
 
@@ -21,7 +21,7 @@ State is checkpointed (`MemorySaver`), so a paused run resumes exactly where it 
 
 A bank in Doha pilots a Gemini assistant over its policy documents. The pilot works; production keeps failing, and each failure arrives as a different wall of logs:
 
-| Symptom in the logs | What deploy-doctor says | Approval? |
+| Symptom in the logs | What GoLive says | Approval? |
 |---|---|---|
 | `403 Permission 'aiplatform.endpoints.predict' denied ... IAM_PERMISSION_DENIED` | The named service account lacks the permission; grant the narrowest role (e.g. `roles/aiplatform.user`) on the project that owns the model. | Yes, IAM change |
 | `Request is prohibited by organization's policy. vpcServiceControlsUniqueIdentifier: ...` | VPC Service Controls blocked a caller outside the perimeter; add an ingress rule, never drop the perimeter. | Yes, network change |
@@ -56,8 +56,8 @@ The one miss is deliberate: a bare `ReadTimeout` with nothing else is ambiguous 
 python3 -m venv .venv && .venv/bin/pip install -r requirements.txt
 .venv/bin/python -m pytest -q                 # 11 tests: interrupt/resume, rejection, decoys, residency, Arabic report
 .venv/bin/python -m evals.run_eval            # exits non-zero below 90%
-.venv/bin/python -m deploy_doctor examples/consent.log --lang ar
-.venv/bin/python -m deploy_doctor examples/vertex_residency.log --config examples/qatar_bank.json
+.venv/bin/python -m golive examples/consent.log --lang ar
+.venv/bin/python -m golive examples/vertex_residency.log --config examples/qatar_bank.json
 ```
 
 ## Design choices

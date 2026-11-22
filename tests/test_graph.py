@@ -1,8 +1,8 @@
 from langgraph.types import Command
 
-from deploy_doctor import build
-from deploy_doctor.diagnose import triage
-from deploy_doctor.signals import extract
+from golive import build
+from golive.diagnose import triage
+from golive.signals import extract
 
 
 def run(logs, config=None, lang="en", tid="t"):
