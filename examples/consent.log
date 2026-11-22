@@ -1,0 +1,3 @@
+POST https://login.microsoftonline.com/contoso/oauth2/v2.0/token 400
+error: AADSTS65001: The user or administrator has not consented to use the application with ID erp-agent
+HTTP 429 (retried, ok)
