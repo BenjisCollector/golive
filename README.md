@@ -8,7 +8,7 @@ The four failures I see most when taking AI agents from pilot to production for 
 
 | Step | Node | What happens |
 |---|---|---|
-| 1 | `parse` | Extracts signals from raw logs: HTTP codes, Entra `AADSTS` codes, `Retry-After`, token counts and 14 error patterns, each tied to the line it came from. Config facts (embedding vs index dimensions, deployment name) count as signals too. |
+| 1 | `parse` | Extracts signals from raw logs: HTTP codes, Entra `AADSTS` codes, `Retry-After`, token counts and 18 error patterns (Azure and Google Cloud), each tied to the line it came from. Config facts (embedding vs index dimensions, deployment name) count as signals too. |
 | 2 | `triage` | Ranks seven areas by evidence: data residency, identity, quota, model limits, retrieval, network, deployment config. A residency breach always ranks first. |
 | 3 | `specialist` (loop) | Asks specialists best-first and stops at the first diagnosis with confidence 0.75 or more. |
 | 4 | `escalate` | No confident diagnosis: the case goes to engineering with what was checked, instead of a guess. |
