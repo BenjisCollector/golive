@@ -41,6 +41,11 @@ KEYWORDS = {
     "dns": r"name or service not known|getaddrinfo|NXDOMAIN|could not resolve",
     "private_endpoint": r"public network access is disabled|private endpoint|403 .*network|firewall",
     "deployment_not_found": r"DeploymentNotFound|deployment .*does not exist|model .*not found",
+    # Google Cloud / Vertex AI
+    "gcp_permission_denied": r"PERMISSION_DENIED|Permission '[a-z]+\.[a-zA-Z.]+' denied|IAM_PERMISSION_DENIED",
+    "gcp_resource_exhausted": r"RESOURCE_EXHAUSTED|Quota exceeded for (metric|quota metric)",
+    "vpc_service_controls": r"vpcServiceControlsUniqueIdentifier|VPC Service Controls|prohibited by organization'?s policy",
+    "wif_token": r"workload identity|invalid_grant.*(subject|audience)|unable to exchange token|sts\.googleapis\.com",
 }
 KEYWORD_RES = {k: re.compile(v, re.I) for k, v in KEYWORDS.items()}
 

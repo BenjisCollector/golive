@@ -46,6 +46,17 @@ CASES = [
      {"deployment": "gpt4o"}),
     ("dc-02", "deployment_config", "error: model 'gpt-4.1' not found on this endpoint", {"deployment": "gpt-4.1"}),
     ("dc-03", "deployment_config", "HTTP 404 Resource not found (POST /openai/deployments/chat/completions)", {"deployment": "chat"}),
+    # Google Cloud / Vertex AI
+    ("gc-01", "identity", "google.api_core.exceptions.PermissionDenied: 403 Permission 'aiplatform.endpoints.predict' denied on resource '//aiplatform.googleapis.com/projects/kw-prod/locations/me-central1/endpoints/123' (or it may not exist). [reason: IAM_PERMISSION_DENIED]",
+     {"service_account": "erp-agent@kw-prod.iam.gserviceaccount.com"}),
+    ("gc-02", "quota", "google.api_core.exceptions.ResourceExhausted: 429 Quota exceeded for aiplatform.googleapis.com/generate_content_requests_per_minute_per_project_per_base_model. status: RESOURCE_EXHAUSTED", {}),
+    ("gc-03", "network", "403 Request is prohibited by organization's policy. vpcServiceControlsUniqueIdentifier: 9cf2a1b7e0", {}),
+    ("gc-04", "identity", "google.auth.exceptions.RefreshError: ('Error code invalid_grant: The audience in the token does not match', {'error': 'invalid_grant'}) while calling sts.googleapis.com", {}),
+    ("gc-05", "data_residency", "POST https://europe-west4-aiplatform.googleapis.com/v1/projects/qa-bank/locations/europe-west4/publishers/google/models/gemini:generateContent 200 OK",
+     {"data_residency": "QA", "region": "europe-west4"}),
+    ("gc-06", "data_residency", "HTTP 429 RESOURCE_EXHAUSTED (retried, ok)\nembeddings written to us-central1 index",
+     {"data_residency": "QA", "region": "us-central1"}),
+    ("gc-07", "escalate", "Vertex AI call returned 200 but answers are slow in the afternoon", {"data_residency": "QA", "region": "me-central1"}),
     # should escalate: no usable signal, or only a generic error
     ("es-01", "escalate", "The app is slow sometimes and users complain", {}),
     ("es-02", "escalate", "HTTP 500 Internal Server Error\nunhandled exception in handler", {}),

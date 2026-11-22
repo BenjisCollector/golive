@@ -6,6 +6,7 @@ customer reads is in their language.
 from __future__ import annotations
 
 CAT_AR = {
+    "data_residency": "إقامة البيانات داخل الدولة",
     "identity": "الهوية والصلاحيات",
     "quota": "حدود الاستخدام",
     "model_limits": "حدود النموذج",

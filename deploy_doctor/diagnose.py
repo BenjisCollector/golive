@@ -9,7 +9,10 @@ from dataclasses import dataclass, field
 
 from .signals import Signals
 
-CATEGORIES = ["identity", "quota", "model_limits", "retrieval", "network", "deployment_config"]
+CATEGORIES = ["data_residency", "identity", "quota", "model_limits", "retrieval", "network", "deployment_config"]
+
+# Country -> Google Cloud regions that keep data in-country (config can override with allowed_regions).
+RESIDENCY = {"QA": {"me-central1"}, "SA": {"me-central2"}}
 
 # Well-known Entra ID (Azure AD) sign-in error codes.
 AADSTS = {
@@ -67,6 +70,17 @@ def identity(s: Signals) -> Diagnosis | None:
                          ["Acquire tokens per request through the SDK credential (it caches and refreshes).",
                           "Remove any token stored in config or environment variables."],
                          0.85, _ev(s, "expired_token"))
+    if "wif_token" in s.keywords:
+        return Diagnosis("identity", "Workload Identity Federation could not exchange the external token for a Google credential.",
+                         ["Check the workload identity pool provider's audience and attribute mapping match the external token.",
+                          "Grant the external identity roles/iam.workloadIdentityUser on the service account it impersonates."],
+                         0.85, _ev(s, "wif_token"), risky_fix=True)
+    if "gcp_permission_denied" in s.keywords:
+        sa = s.config.get("service_account", "the service account")
+        return Diagnosis("identity", f"IAM: {sa} lacks the permission the Vertex AI / Google Cloud call needs.",
+                         [f"Grant {sa} the narrowest role that holds the permission named in the error (e.g. roles/aiplatform.user for predictions).",
+                          "Grant it on the project or resource that owns the model, not the caller's project, and allow a few minutes to propagate."],
+                         0.9, _ev(s, "gcp_permission_denied"), risky_fix=True)
     if 401 in s.http_codes:
         return Diagnosis("identity", "Unauthenticated (401) with no more specific error in the logs.",
                          ["Log the full error body; check the credential type and tenant."], 0.5)
@@ -74,6 +88,11 @@ def identity(s: Signals) -> Diagnosis | None:
 
 
 def quota(s: Signals) -> Diagnosis | None:
+    if "gcp_resource_exhausted" in s.keywords:
+        return Diagnosis("quota", "Google Cloud quota exhausted (RESOURCE_EXHAUSTED) for the model in this region.",
+                         ["Retry with exponential backoff; Vertex AI quota is per project, per region, per model.",
+                          "Request a quota increase in IAM & Admin > Quotas, or use Provisioned Throughput for steady production load."],
+                         0.9, _ev(s, "gcp_resource_exhausted"))
     if 429 in s.http_codes or "rate_limited" in s.keywords:
         wait = f" The service asked to wait {s.retry_after_s}s." if s.retry_after_s else ""
         return Diagnosis("quota", "Requests exceed the deployment's rate limit (tokens or requests per minute)." + wait,
@@ -124,6 +143,11 @@ def retrieval(s: Signals) -> Diagnosis | None:
 
 
 def network(s: Signals) -> Diagnosis | None:
+    if "vpc_service_controls" in s.keywords:
+        return Diagnosis("network", "VPC Service Controls blocked the call: the caller is outside the service perimeter.",
+                         ["Look up the vpcServiceControlsUniqueIdentifier in the audit logs to see which rule fired.",
+                          "Add an ingress rule for the caller's identity and source, or run the caller inside the perimeter; do not remove the perimeter."],
+                         0.9, _ev(s, "vpc_service_controls"), risky_fix=True)
     if "private_endpoint" in s.keywords:
         return Diagnosis("network", "The resource only accepts private traffic and the caller is outside the VNet.",
                          ["Run the app inside the VNet (VNet integration) or allow its subnet.",
@@ -151,18 +175,35 @@ def deployment_config(s: Signals) -> Diagnosis | None:
     return None
 
 
+def data_residency(s: Signals) -> Diagnosis | None:
+    country, region = s.config.get("data_residency"), s.config.get("region")
+    if not country or not region:
+        return None
+    allowed = set(s.config.get("allowed_regions") or RESIDENCY.get(country, set()))
+    if allowed and region not in allowed:
+        return Diagnosis("data_residency",
+                         f"Data must stay in {country} but the model endpoint runs in {region} (allowed: {', '.join(sorted(allowed))}).",
+                         [f"Deploy the model and vector index in {', '.join(sorted(allowed))} and pin the client to that regional endpoint.",
+                          "Check every hop (embeddings, logging, evaluation exports) for the same constraint, not only the model call.",
+                          "Record the decision for the customer's compliance team before go-live."],
+                         0.95, [f"config: data_residency={country}, region={region}"], risky_fix=True)
+    return None
+
+
 SPECIALISTS = {
+    "data_residency": data_residency,
     "identity": identity, "quota": quota, "model_limits": model_limits,
     "retrieval": retrieval, "network": network, "deployment_config": deployment_config,
 }
 
 # Cheap triage scores: which specialist to ask first.
 TRIAGE = {
-    "identity": ({"invalid_audience", "missing_scope", "expired_token", "consent_required"}, {401}),
-    "quota": ({"rate_limited"}, {429}),
+    "data_residency": (set(), set()),
+    "identity": ({"invalid_audience", "missing_scope", "expired_token", "consent_required", "gcp_permission_denied", "wif_token"}, {401}),
+    "quota": ({"rate_limited", "gcp_resource_exhausted"}, {429}),
     "model_limits": ({"context_length", "content_filter"}, set()),
     "retrieval": ({"index_not_found", "dimension_mismatch", "empty_retrieval"}, set()),
-    "network": ({"timeout", "dns", "private_endpoint"}, set()),
+    "network": ({"timeout", "dns", "private_endpoint", "vpc_service_controls"}, set()),
     "deployment_config": ({"deployment_not_found"}, {404}),
 }
 
@@ -174,6 +215,8 @@ def triage(s: Signals) -> list[str]:
         score = 2 * len(kws & s.keywords) + len(codes & set(s.http_codes))
         if cat == "identity" and s.aadsts:
             score += 3
+        if cat == "data_residency" and data_residency(s):
+            score += 10  # a residency breach outranks any runtime error: fix it first
         if cat == "retrieval" and s.config.get("embedding_dims") and s.config.get("index_dims") \
                 and s.config["embedding_dims"] != s.config["index_dims"]:
             score += 3

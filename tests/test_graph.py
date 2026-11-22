@@ -60,3 +60,22 @@ def test_arabic_customer_summary():
 
 def test_seven_digit_aadsts_code():
     assert extract("AADSTS7000215: Invalid client secret").aadsts == ["7000215"]
+
+
+def test_gcp_permission_denied_names_the_service_account_and_needs_approval():
+    g, cfg, out = run("403 Permission 'aiplatform.endpoints.predict' denied. [reason: IAM_PERMISSION_DENIED]",
+                      {"service_account": "agent@p.iam.gserviceaccount.com"}, tid="gcp")
+    assert "__interrupt__" in out
+    done = g.invoke(Command(resume={"approve": True}), cfg)
+    assert done["diagnosis"]["category"] == "identity"
+    assert "agent@p.iam.gserviceaccount.com" in done["diagnosis"]["root_cause"]
+
+
+def test_qatar_residency_breach_outranks_a_runtime_error():
+    s = extract("HTTP 429 RESOURCE_EXHAUSTED", {"data_residency": "QA", "region": "europe-west4"})
+    assert triage(s)[0] == "data_residency"
+
+
+def test_in_region_qatar_deployment_is_not_flagged():
+    s = extract("200 OK", {"data_residency": "QA", "region": "me-central1"})
+    assert "data_residency" not in triage(s)
